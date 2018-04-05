@@ -32,6 +32,9 @@
 #include "avr_usb.h"
 #include "avr_acomp.h"
 
+#define USBRF 5 // missing in avr/iom32u4.h
+#define RAMPZ   _SFR_IO8(0x3B)
+
 void usb1286_init(struct avr_t * avr);
 void usb1286_reset(struct avr_t * avr);
 
@@ -60,6 +63,9 @@ const struct mcu_t {
 
 		.init = usb1286_init,
 		.reset = usb1286_reset,
+
+        .rampz = RAMPZ, // extended program memory access
+        //.eind = EIND,   // extended index register
 	},
 	AVR_EEPROM_DECLARE(EE_READY_vect),
 	AVR_SELFPROG_DECLARE(SPMCSR, SPMEN, SPM_READY_vect),
@@ -83,9 +89,7 @@ const struct mcu_t {
 		},
 		.r_pcint = PCMSK0,
 	},
-	.portc = {
-		.name = 'C', .r_port = PORTC, .r_ddr = DDRC, .r_pin = PINC,
-	},
+	AVR_IOPORT_DECLARE(c, 'C', C),
 	AVR_IOPORT_DECLARE(d, 'D', D),
 
 	AVR_UARTX_DECLARE(1, PRR1, PRUSART1),
@@ -197,20 +201,15 @@ const struct mcu_t {
 		},
 	},
 	AVR_SPI_DECLARE(0, 0),
-    /*
 	.usb = {
-		.name='1',
-		.disabled=AVR_IO_REGBIT(PRR1, PRUSB),// bit in the PRR
-
-		.usbrf=AVR_IO_REGBIT(MCUSR,USBRF),	// bit in the MCUSR
-
+		.name = '1',
+		.disabled = AVR_IO_REGBIT(PRR1, PRUSB),
+		.usbrf = AVR_IO_REGBIT(MCUSR, USBRF),
 		.r_usbcon = USBCON,
-		.r_pllcsr=PLLCSR,
-
-		.usb_com_vect=USB_COM_vect,
-		.usb_gen_vect=USB_GEN_vect,
+		.r_pllcsr = PLLCSR,
+		.usb_com_vect = USB_COM_vect,
+		.usb_gen_vect = USB_GEN_vect,
 	},
-    */
 	.acomp = {
 		.r_acsr = ACSR,
 		.acis = { AVR_IO_REGBIT(ACSR, ACIS0), AVR_IO_REGBIT(ACSR, ACIS1) },
@@ -235,7 +234,7 @@ static avr_t * make()
 }
 
 avr_kind_t usb1286 = {
-	.names = { "at90usb1286" },
+	.names = {"at90usb1286"},
 	.make = make
 };
 
