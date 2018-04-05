@@ -18,7 +18,7 @@
 
 target=	test
 firm_src = ${wildcard at*${board}.c}
-firmware = ${firm_src:.c=.hex}
+firmware = ${firm_src:.c=.axf}
 simavr = ../..
 
 IPATH = .

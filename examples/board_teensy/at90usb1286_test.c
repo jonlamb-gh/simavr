@@ -33,11 +33,13 @@ int main()
 {
 	sei();
 
-    int i;
+    DDRB = 0xFF;
+
+    uint8_t i = 0;
     while(1)
     {
         i += 1;
-
+        PORTB = i;
         if(1 >= 200)
             break;
     }
