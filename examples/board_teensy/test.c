@@ -35,41 +35,101 @@
 #include "sim_elf.h"
 #include "sim_hex.h"
 #include "sim_gdb.h"
+//#include "vhci_usb.h"
 #include "sim_vcd_file.h"
 
 avr_t * avr = NULL;
 avr_vcd_t vcd_file;
 
+
+struct avr_flash {
+	char avr_flash_path[1024];
+	int avr_flash_fd;
+};
+
+// avr special flash initalization
+// here: open and map a file to enable a persistent storage for the flash memory
+void avr_special_init( avr_t* avr, void *data)
+{
+	struct avr_flash *flash_data = (struct avr_flash *)data;
+	//puts(" --=== INIT CALLED ===--");
+	// release flash memory if allocated
+	if(avr->flash) free(avr->flash);
+	// open the file
+	flash_data->avr_flash_fd = open(flash_data->avr_flash_path,
+            O_RDWR|O_CREAT, 0644);
+	if (flash_data->avr_flash_fd < 0) {
+		perror(flash_data->avr_flash_path);
+		exit(1);
+	}
+	// resize and map the file the file
+	(void)ftruncate(flash_data->avr_flash_fd, avr->flashend + 1);
+	avr->flash = (uint8_t*)mmap(NULL, avr->flashend + 1, // 32k is multiple of 4096
+            PROT_READ|PROT_WRITE, MAP_SHARED, flash_data->avr_flash_fd, 0);
+	if (!avr->flash) {
+		fprintf(stderr, "unable to map memory\n");
+		perror(flash_data->avr_flash_path);
+		exit(1);
+	}
+}
+
+// avr special flash deinitalization
+// here: cleanup the persistent storage
+void avr_special_deinit( avr_t* avr, void *data)
+{
+	struct avr_flash *flash_data = (struct avr_flash *)data;
+	//puts(" --=== DEINIT CALLED ===--");
+	// unmap and close the file
+	munmap( avr->flash, avr->flashend + 1);
+	close(flash_data->avr_flash_fd);
+	// signal that cleanup is done
+	avr->flash = NULL;
+}
+
 int main(int argc, char *argv[])
 {
+//		elf_firmware_t f;
 	const char * pwd = dirname(argv[0]);
+	struct avr_flash flash_data;
 
 	avr = avr_make_mcu_by_name("at90usb1286");
 	if (!avr) {
 		fprintf(stderr, "%s: Error creating the AVR core\n", argv[0]);
 		exit(1);
 	}
+	strcpy(flash_data.avr_flash_path,  "simusb_flash.bin");
+	flash_data.avr_flash_fd = 0;
+	// register our own functions
+	avr->custom.init = avr_special_init;
+	avr->custom.deinit = avr_special_deinit;
+	avr->custom.data = &flash_data;
 	//avr->reset = NULL;
 	avr_init(avr);
-	avr->frequency = 16000000;
-    avr->log = 11;
+    // hard-coded in makefile.common?
+	avr->frequency = 8000000;
 
-    {
-        char path[1024];
-        uint32_t base, size;
-        snprintf(path, sizeof(path), "%s/../%s", pwd, "at90usb1286_test.hex");
+    // TODO - replace this with elf loader
 
-        uint8_t * boot = read_ihex_file(path, &size, &base);
-        if (!boot) {
-            fprintf(stderr, "%s: Unable to load %s\n", argv[0], path);
-            exit(1);
-        }
-        printf("Bootloader %04x: %d\n", base, size);
-        memcpy(avr->flash + base, boot, size);
-        free(boot);
-        avr->pc = base;
-        avr->codeend = avr->flashend;
-    }
+	// this trick creates a file that contains /and keep/ the flash
+	// in the same state as it was before. This allow the bootloader
+	// app to be kept, and re-run if the bootloader doesn't get a
+	// new one
+	{
+		char path[1024];
+		uint32_t base, size;
+		snprintf(path, sizeof(path), "%s/../%s", pwd, "at90usb1286_test.hex");
+
+		uint8_t * boot = read_ihex_file(path, &size, &base);
+		if (!boot) {
+			fprintf(stderr, "%s: Unable to load %s\n", argv[0], path);
+			exit(1);
+		}
+		printf("Bootloader %04x: %d\n", base, size);
+		memcpy(avr->flash + base, boot, size);
+		free(boot);
+		avr->pc = base;
+		avr->codeend = avr->flashend;
+	}
 
 	// even if not setup at startup, activate gdb if crashing
 	avr->gdb_port = 1234;
@@ -78,9 +138,7 @@ int main(int argc, char *argv[])
 		avr_gdb_init(avr);
 	}
 
-    printf("starting\n");
-
-     while (1) {
+    while (1) {
         int state = avr_run(avr);
         if ( state == cpu_Done || state == cpu_Crashed)
             break;
