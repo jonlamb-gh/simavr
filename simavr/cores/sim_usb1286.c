@@ -52,7 +52,7 @@ const struct mcu_t {
 	avr_extint_t	extint;
 	avr_ioport_t	portb, portc, portd;
 	avr_uart_t		uart1;
-	avr_timer_t		timer0,timer1;
+	avr_timer_t		timer0, timer1, timer3;
 	avr_spi_t		spi;
 	avr_usb_t		usb;
 	avr_acomp_t		acomp;
@@ -95,6 +95,7 @@ const struct mcu_t {
 	AVR_UARTX_DECLARE(1, PRR1, PRUSART1),
 
 	.timer0 = {
+        .trace = 1,
 		.name = '0',
 		.disabled = AVR_IO_REGBIT(PRR0, PRTIM0),
 		.wgm = { AVR_IO_REGBIT(TCCR0A, WGM00), AVR_IO_REGBIT(TCCR0A, WGM01), AVR_IO_REGBIT(TCCR0B, WGM02) },
@@ -140,6 +141,7 @@ const struct mcu_t {
 		}
 	},
 	.timer1 = {
+        .trace = 1,
 		.name = '1',
 		.disabled = AVR_IO_REGBIT(PRR0,PRTIM1),
 		.wgm = { AVR_IO_REGBIT(TCCR1A, WGM10), AVR_IO_REGBIT(TCCR1A, WGM11),
@@ -201,6 +203,87 @@ const struct mcu_t {
 			},
 		},
 	},
+    .timer3 = {
+        .trace = 1,
+        .name = '3',
+        .wgm = { AVR_IO_REGBIT(TCCR3A, WGM30), AVR_IO_REGBIT(TCCR3A, WGM31),
+                    AVR_IO_REGBIT(TCCR3B, WGM32), AVR_IO_REGBIT(TCCR3B, WGM33) },
+        .wgm_op = {
+            [0] = AVR_TIMER_WGM_NORMAL16(),
+            // TODO: 1 PWM phase correct 8bit
+            //       2 PWM phase correct 9bit
+            //       3 PWM phase correct 10bit
+            [4] = AVR_TIMER_WGM_CTC(),
+            [5] = AVR_TIMER_WGM_FASTPWM8(),
+            [6] = AVR_TIMER_WGM_FASTPWM9(),
+            [7] = AVR_TIMER_WGM_FASTPWM10(),
+            // TODO: 8 PWM phase and freq correct ICR
+            //       9 PWM phase and freq correct OCR
+            //       10
+            //       11
+            [12] = AVR_TIMER_WGM_ICCTC(),
+            [14] = AVR_TIMER_WGM_ICPWM(),
+            [15] = AVR_TIMER_WGM_OCPWM(),
+        },
+        .cs = { AVR_IO_REGBIT(TCCR3B, CS30), AVR_IO_REGBIT(TCCR3B, CS31), AVR_IO_REGBIT(TCCR3B, CS32)  },
+        .cs_div = { 0, 0, 3 /* 8 */, 6 /* 64 */, 8 /* 256 */, 10 /* 1024 */, AVR_TIMER_EXTCLK_CHOOSE,  AVR_TIMER_EXTCLK_CHOOSE },
+        .ext_clock_pin = AVR_IO_REGBIT(PORTE, 6), /* External clock pin */
+
+        .r_tcnt = TCNT3L,
+        .r_icr = ICR3L,
+        .r_icrh = ICR3H,
+        .r_tcnth = TCNT3H,
+
+        .ices = AVR_IO_REGBIT(TCCR3B, ICES3),
+        .icp = AVR_IO_REGBIT(PORTE, 7),
+
+        .overflow = {
+            .enable = AVR_IO_REGBIT(TIMSK3, TOIE3),
+            .raised = AVR_IO_REGBIT(TIFR3, TOV3),
+            .vector = TIMER3_OVF_vect,
+        },
+        .icr = {
+            .enable = AVR_IO_REGBIT(TIMSK3, ICIE3),
+            .raised = AVR_IO_REGBIT(TIFR3, ICF3),
+            .vector = TIMER3_CAPT_vect,
+        },
+
+        .comp = {
+            [AVR_TIMER_COMPA] = {
+                .r_ocr = OCR3AL,
+                .r_ocrh = OCR3AH,   // 16 bits timers have two bytes of it
+                .com = AVR_IO_REGBITS(TCCR3A, COM3A0, 0x3),
+                .com_pin = AVR_IO_REGBIT(PORTE, PE3),
+                .interrupt = {
+                    .enable = AVR_IO_REGBIT(TIMSK3, OCIE3A),
+                    .raised = AVR_IO_REGBIT(TIFR3, OCF3A),
+                    .vector = TIMER3_COMPA_vect,
+                }
+            },
+            [AVR_TIMER_COMPB] = {
+                .r_ocr = OCR3BL,
+                .r_ocrh = OCR3BH,
+                .com = AVR_IO_REGBITS(TCCR3A, COM3B0, 0x3),
+                .com_pin = AVR_IO_REGBIT(PORTE, PE4),
+                .interrupt = {
+                    .enable = AVR_IO_REGBIT(TIMSK3, OCIE3B),
+                    .raised = AVR_IO_REGBIT(TIFR3, OCF3B),
+                    .vector = TIMER3_COMPB_vect,
+                }
+            },
+            [AVR_TIMER_COMPC] = {
+                .r_ocr = OCR3CL,
+                .r_ocrh = OCR3CH,
+                .com = AVR_IO_REGBITS(TCCR3A, COM3C0, 0x3),
+                .com_pin = AVR_IO_REGBIT(PORTE, PE5),
+                .interrupt = {
+                    .enable = AVR_IO_REGBIT(TIMSK3, OCIE3C),
+                    .raised = AVR_IO_REGBIT(TIFR3, OCF3C),
+                    .vector = TIMER3_COMPC_vect,
+                }
+            }
+        },
+    },
 	AVR_SPI_DECLARE(0, 0),
 	.usb = {
 		.name = '1',
@@ -253,6 +336,7 @@ void usb1286_init(struct avr_t * avr)
 	avr_uart_init(avr, &mcu->uart1);
 	avr_timer_init(avr, &mcu->timer0);
 	avr_timer_init(avr, &mcu->timer1);
+	avr_timer_init(avr, &mcu->timer3);
 	avr_spi_init(avr, &mcu->spi);
 	//avr_usb_init(avr, &mcu->usb);
 	avr_acomp_init(avr, &mcu->acomp);
