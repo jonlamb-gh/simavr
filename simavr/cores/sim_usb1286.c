@@ -70,6 +70,7 @@ const struct mcu_t {
 	AVR_EEPROM_DECLARE(EE_READY_vect),
 	AVR_SELFPROG_DECLARE(SPMCSR, SPMEN, SPM_READY_vect),
 	AVR_WATCHDOG_DECLARE(WDTCSR, WDT_vect),
+    /*
 	.extint = {
 		AVR_EXTINT_MEGA_DECLARE(0, 'D', PD0, A),
 		AVR_EXTINT_MEGA_DECLARE(1, 'D', PD1, A),
@@ -89,6 +90,8 @@ const struct mcu_t {
 		},
 		.r_pcint = PCMSK0,
 	},
+    */
+	AVR_IOPORT_DECLARE(b, 'B', B),
 	AVR_IOPORT_DECLARE(c, 'C', C),
 	AVR_IOPORT_DECLARE(d, 'D', D),
 
@@ -126,6 +129,7 @@ const struct mcu_t {
 					.enable = AVR_IO_REGBIT(TIMSK0, OCIE0A),
 					.raised = AVR_IO_REGBIT(TIFR0, OCF0A),
 					.vector = TIMER0_COMPA_vect,
+                    //.trace = 1,
 				},
 			},
 			[AVR_TIMER_COMPB] = {
