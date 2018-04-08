@@ -65,7 +65,6 @@ const struct mcu_t {
 		.reset = usb1286_reset,
 
         .rampz = RAMPZ, // extended program memory access
-        //.eind = EIND,   // extended index register
 	},
 	AVR_EEPROM_DECLARE(EE_READY_vect),
 	AVR_SELFPROG_DECLARE(SPMCSR, SPMEN, SPM_READY_vect),
@@ -98,7 +97,6 @@ const struct mcu_t {
 	AVR_UARTX_DECLARE(1, PRR1, PRUSART1),
 
 	.timer0 = {
-        .trace = 1,
 		.name = '0',
 		.disabled = AVR_IO_REGBIT(PRR0, PRTIM0),
 		.wgm = { AVR_IO_REGBIT(TCCR0A, WGM00), AVR_IO_REGBIT(TCCR0A, WGM01), AVR_IO_REGBIT(TCCR0B, WGM02) },
@@ -129,7 +127,6 @@ const struct mcu_t {
 					.enable = AVR_IO_REGBIT(TIMSK0, OCIE0A),
 					.raised = AVR_IO_REGBIT(TIFR0, OCF0A),
 					.vector = TIMER0_COMPA_vect,
-                    //.trace = 1,
 				},
 			},
 			[AVR_TIMER_COMPB] = {
@@ -145,7 +142,6 @@ const struct mcu_t {
 		}
 	},
 	.timer1 = {
-        .trace = 1,
 		.name = '1',
 		.disabled = AVR_IO_REGBIT(PRR0,PRTIM1),
 		.wgm = { AVR_IO_REGBIT(TCCR1A, WGM10), AVR_IO_REGBIT(TCCR1A, WGM11),
@@ -208,7 +204,6 @@ const struct mcu_t {
 		},
 	},
     .timer3 = {
-        .trace = 1,
         .name = '3',
         .wgm = { AVR_IO_REGBIT(TCCR3A, WGM30), AVR_IO_REGBIT(TCCR3A, WGM31),
                     AVR_IO_REGBIT(TCCR3B, WGM32), AVR_IO_REGBIT(TCCR3B, WGM33) },
